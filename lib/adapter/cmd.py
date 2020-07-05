@@ -38,7 +38,7 @@ class CommandAdapter(Adapter):
         if cmd:
             try:
                 proc = Popen(cmd, stdout=PIPE, stderr=PIPE)
-                answer = proc.communicate()[0].decode('utf-8')
+                answer = proc.communicate()[0].decode('utf-8', 'ignore')
             except OSError:
                 return "ERROR of the \"%s\" adapter: please create an issue" % self._adapter_name
             return answer
@@ -111,4 +111,70 @@ class AdapterRfc(CommandAdapter):
         return list("rfc/%s" % x for x in range(1, 8649))
 
     def is_found(self, topic):
-        return True 
+        return True
+
+class AdapterOeis(CommandAdapter):
+    """
+    Show OEIS by its number.
+    Exported as: "/oeis/NUMBER"
+    """
+
+    _adapter_name = "oeis"
+    _output_format = "text+code"
+    _cache_needed = True
+    _command = ["share/adapters/oeis.sh"]
+
+    @staticmethod
+    def _get_filetype(topic):
+        if "/" in topic:
+            language = topic.split("/")[-1].lower()
+            return language
+        return "bash"
+
+    def _get_command(self, topic, request_options=None):
+        cmd = self._command[:]
+        if not cmd[0].startswith("/"):
+            cmd[0] = _get_abspath(cmd[0])
+
+        # cut oeis/ off
+        # Replace all non (alphanumeric, '-', ':') chars with Spaces to delimit args to oeis.sh
+        if topic.startswith("oeis/"):
+            topic = topic[5:]
+
+            suffix = ""
+            if topic.endswith("/:list"):
+                suffix = " :list"
+                topic = topic[:-6]
+
+            topic = re.sub('[^a-zA-Z0-9-:]+', ' ', topic) + suffix
+
+        return cmd + [topic]
+
+    def is_found(self, topic):
+        return True
+
+class AdapterChmod(CommandAdapter):
+    """
+    Show chmod numeric values and strings
+    Exported as: "/chmod/NUMBER"
+    """
+
+    _adapter_name = "chmod"
+    _output_format = "text"
+    _cache_needed = True
+    _command = ["share/adapters/chmod.sh"]
+
+    def _get_command(self, topic, request_options=None):
+        cmd = self._command[:]
+
+        # cut chmod/ off
+        # remove all non (alphanumeric, '-') chars
+        if topic.startswith("chmod/"):
+            topic = topic[6:]
+            topic = re.sub('[^a-zA-Z0-9-]', '', topic)
+
+
+        return cmd + [topic]
+
+    def is_found(self, topic):
+        return True
